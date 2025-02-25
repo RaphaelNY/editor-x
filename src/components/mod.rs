@@ -1,2 +1,5 @@
-mod hero;
-pub use hero::Hero;
+mod editor;
+mod toolbar;
+
+pub use editor::EditorArea;
+pub use toolbar::Toolbar;
