@@ -9,11 +9,9 @@ edition = "2021"
 [dependencies]
 dioxus = { version = "0.6.3", features = ["desktop", "web"] }
 dioxus-web = "0.6.3"
-getrandom = { version = "0.3", features = ["wasm_js"] }
 pulldown-cmark = "0.13.0"
 syntect = "5.2.0"
 tokio = { version = "1.0.1", features = ["full"] }
-uuid = { version = "1.14.0", features = ["js"] }
 zino = {version = "0.32.2", features = ["dioxus"]}
 
 [features]

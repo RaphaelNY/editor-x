@@ -1819,11 +1819,9 @@ version = "0.1.0"
 dependencies = [
  "dioxus",
  "dioxus-web",
- "getrandom 0.3.1",
  "pulldown-cmark",
  "syntect",
  "tokio",
- "uuid",
  "zino",
 ]
 
@@ -2362,10 +2360,8 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "43a49c392881ce6d5c3b8cb70f98717b7c07aabbdff06687b9030dbfbe2725f8"
 dependencies = [
  "cfg-if",
- "js-sys",
  "libc",
  "wasi 0.13.3+wasi-0.2.2",
- "wasm-bindgen",
  "windows-targets 0.52.6",
 ]
 
@@ -6411,10 +6407,8 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "93d59ca99a559661b96bf898d8fce28ed87935fd2bea9f05983c1464dd6c71b1"
 dependencies = [
  "getrandom 0.3.1",
- "js-sys",
  "rand 0.9.0",
  "serde",
- "wasm-bindgen",
 ]
 
 [[package]]
