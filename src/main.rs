@@ -9,13 +9,14 @@ fn main() {
 
 #[component]
 fn App() -> Element {
+    let language = use_signal(|| "Rust".to_string());
     rsx! {
         div {
             style: "width: 100vw; height: 100vh; display: flex; flex-direction: column;",
 
-            Toolbar {},
+            Toolbar {language: language },
 
-            EditorArea {}
+            EditorArea {language: language }
         }
     }
 }

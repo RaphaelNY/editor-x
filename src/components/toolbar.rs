@@ -1,9 +1,20 @@
 use dioxus::prelude::*;
 
+#[derive(Props, PartialEq, Clone)]
+pub struct ToolbarProps {
+    language: Signal<String>,
+}
+
 #[component]
-pub fn Toolbar() -> Element {
-    let langurages = vec!["Rust".to_string(), "Markdown".to_string()];
-    let mut selected_langurage = use_signal(|| langurages[0].clone());
+pub fn Toolbar(props: ToolbarProps) -> Element {
+    let mut language = props.language.clone(); // 从父组件获取语言状态
+
+    // 监听语言选择变化
+    let on_language_change = move |e: Event<FormData>| {
+        let selected = e.value();
+        language.set(selected); // 更新语言选择
+    };
+
     rsx! {
         div {
             style: "background: #f0f0f0; padding: 8px; border-bottom: 1px solid #ddd; width: 100vw; height: 40px; display: flex; align-items: center;",
@@ -13,12 +24,10 @@ pub fn Toolbar() -> Element {
             button { class: "toolbar-btn", style: "margin-right: 4px", "保存" }
             button { class: "toolbar-btn", style: "margin-right: 4px", "另存为" }
 
-            select { 
+            select {
                 style: "margin-left: auto; margin-left: 50px;",
-                onchange: move |e| {
-                    let target = e.value();
-                    selected_langurage.set(target);
-                },
+                value: "{language}",
+                onchange: on_language_change,
                 option { value: "Rust", "Rust" }
                 option { value: "Markdown", "Markdown" }
             }
