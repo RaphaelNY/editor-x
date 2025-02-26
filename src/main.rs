@@ -11,7 +11,7 @@ fn main() {
 fn App() -> Element {
     rsx! {
         div {
-            style: "height: 100vh; display: flex; flex-direction: column;",
+            style: "width: 100vw; height: 100vh; display: flex; flex-direction: column;",
 
             Toolbar {},
 
