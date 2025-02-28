@@ -194,13 +194,12 @@ pub fn EditorArea(props: EditorAreaProps) -> Element {
                                 textarea {
                                     value: "{input_buffer}",
                                     oninput: move |e| input_buffer.set(e.value()),
-                                    style: "position: absolute; opacity: 0; width: 1px; height: 1px; border: none; outline: none; padding: 0;",
+                                    autofocus: true,
+                                    style: "position: absolute; opacity: 0; width: 1px; height: 18px; border: none; outline: none; padding: 0;",
                                 }
                             }
                         }
                     }
-
-                    
                 }
             }
         }
