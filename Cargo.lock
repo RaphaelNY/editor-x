@@ -1821,6 +1821,7 @@ dependencies = [
  "dioxus-web",
  "syntect",
  "tokio",
+ "tree-sitter",
  "tree-sitter-highlight",
  "tree-sitter-javascript",
  "zino",

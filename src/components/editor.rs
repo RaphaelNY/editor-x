@@ -1,53 +1,81 @@
-use dioxus::prelude::*;
+use dioxus::{html::g::cursor, prelude::*};
+
 #[derive(Props, PartialEq, Clone)]
 pub struct EditorAreaProps {
     language: Signal<String>,
+    cursor_position: Signal<(usize, usize)>,
+}
+
+#[derive(Clone)]
+pub struct Token {
+    text: &'static str,
+    color: &'static str,
+    background: &'static str,
+    is_cursor: bool,
 }
 
 #[component]
 pub fn EditorArea(props: EditorAreaProps) -> Element {
-    let mut content = use_signal(String::new);
-    let mut lines: Signal<Vec<String>> = use_signal(Vec::new);
-    let language = props.language.clone();
+    // selected language
+    let mut language = props.language.clone();
+    let cursor_position = props.cursor_position.clone();
 
-    // 监听 `content` 的每行更新
-    use_effect(move || {
-        let content_text = content();
-        let new_lines = content_text
-            .split('\n')
-            .map(|line| line.to_string())
-            .collect::<Vec<_>>();
-        lines.set(new_lines);
-    }); // 只有 content 改变时更新行号
+    let lines = vec![
+        vec![
+            Token { text: "fn", color: "#000", background: "#fff", is_cursor: false },
+            Token { text: " ", color: "#000", background: "#fff", is_cursor: false },
+            Token { text: "main", color: "#000", background: "#fff", is_cursor: false },
+            Token { text: "(", color: "#000", background: "#fff", is_cursor: false },
+            Token { text: ")", color: "#000", background: "#fff", is_cursor: false },
+            Token { text: " ", color: "#000", background: "#fff", is_cursor: false },
+            Token { text: "{", color: "#000", background: "#fff", is_cursor: false },
+        ],
+        vec![
+            Token { text: "    ", color: "#000", background: "#fff", is_cursor: false },
+            Token { text: "println", color: "#000", background: "#fff", is_cursor: false },
+            Token { text: "!", color: "#000", background: "#fff", is_cursor: false },
+            Token { text: r#""Hello, World!""#, color: "#000", background: "#fff", is_cursor: false },
+            Token { text: ";", color: "#000", background: "#fff", is_cursor: false },
+        ],
+        vec![
+            Token { text: "}", color: "#000", background: "#fff", is_cursor: false },
+        ],
+    ];
 
-    let line_number_elements = lines()
-        .iter()
-        .enumerate()
-        .map(|(i, _)| {
-            rsx! {
-                div {
-                    style: "text-align: center;",
-                    "{i + 1}"
-                }
-            }
-        })
-        .collect::<Vec<_>>();
+    // 更新光标位置，设置当前光标为特定位置
+    let mut lines_with_cursor = lines.clone();
+    let (cursor_row, cursor_col) = cursor_position();
+    if cursor_row < lines_with_cursor.len() {
+        if cursor_col < lines_with_cursor[cursor_row].len() {
+            lines_with_cursor[cursor_row][cursor_col].is_cursor = true;
+        } else {
+            let cursor_col = lines_with_cursor[cursor_row].len() - 1;
+            lines_with_cursor[cursor_row][cursor_col].is_cursor = true;
+        }
+    } else {
+        let cursor_row = lines_with_cursor.len() - 1;
+        let cursor_col = lines_with_cursor[cursor_row].len() - 1;
+        lines_with_cursor[cursor_row][cursor_col].is_cursor = true;
+    }
 
     rsx! {
-        div {
-            style: "flex-grow: 1; position: relative; width: 100vw; height: 100vh;", // 设置宽度为窗口宽度
-
+        for (i, line) in lines_with_cursor.iter().enumerate() {
             div {
-                style: "position: absolute; left: 0; top: 0; width: 40px; background: #f0f0f0; padding: 10px; line-height: 1.9; font-family: monospace; overflow-y: auto;",
-                { line_number_elements.into_iter() }
-            }
-
-            // 使用 textarea 进行文本输入
-            textarea {
-                style: "position: absolute; left: 50px; top: 0; width: calc(50vw - 50px); height: 100%; padding: 10px; font-size: 16px; line-height: 1.5; font-family: monospace; border: none; outline: none;",
-                value: "{content()}", // 绑定 content 信号
-                oninput: move |e| {
-                    content.set(e.value().clone()); // 更新 content
+                style: "white-space: pre; font-family: monospace; font-size: 16px; padding: 4px;",
+                for (j, token) in line.iter().enumerate() {
+                    span {
+                        style: format!(
+                            "color: {}; background: {}; {}",
+                            token.color,
+                            token.background,
+                            if token.is_cursor {
+                                "border-left: 2px solid #000;" // 给光标加上左边框
+                            } else {
+                                ""
+                            }
+                        ),
+                        "{token.text}"
+                    }
                 }
             }
         }
