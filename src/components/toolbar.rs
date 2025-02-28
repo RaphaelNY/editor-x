@@ -36,7 +36,7 @@ pub fn Toolbar(props: ToolbarProps) -> Element {
                 r#type: "file",
                 id: "file-input",
                 style: "display: none;",
-                onchange: |event| {
+                onchange: |_event| {
                     // 处理文件选择...
                 }
             }

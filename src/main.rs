@@ -10,7 +10,7 @@ fn main() {
 #[component]
 fn App() -> Element {
     let language = use_signal(|| "Rust".to_string());
-    let cursor_position = use_signal(|| (1, 13));
+    let cursor_position = use_signal(|| (65, 8));
     rsx! {
         div {
             style: "width: 100vw; height: 100vh; display: flex; flex-direction: column;",

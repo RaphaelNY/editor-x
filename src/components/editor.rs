@@ -1,5 +1,7 @@
 use dioxus::prelude::*;
 
+use crate::components::handle_mouse_click;
+
 #[derive(Props, PartialEq, Clone)]
 pub struct EditorAreaProps {
     language: Signal<String>,
@@ -8,7 +10,7 @@ pub struct EditorAreaProps {
 
 #[derive(Clone)]
 pub struct Token {
-    text: &'static str,
+    pub text: &'static str,
     color: &'static str,
     background: &'static str,
     is_cursor: bool,
@@ -38,7 +40,8 @@ pub fn EditorArea(props: EditorAreaProps) -> Element {
     let mut _language = props.language.clone();
     let cursor_position = props.cursor_position.clone();
 
-    let mut lines = vec![
+    let mut input_buffer = use_signal(String::new);
+    let lines = vec![
         vec![
             Token {
                 text: "fn",
@@ -125,9 +128,17 @@ pub fn EditorArea(props: EditorAreaProps) -> Element {
         ],
     ];
 
+    let on_click = move |e| {
+        handle_mouse_click(e, cursor_position);
+        println!("{:?}", cursor_position());
+    };
+
     // 更新光标位置，设置当前光标为特定位置
     let mut lines_with_cursor = lines.clone();
-    let (cursor_row, cursor_col) = cursor_position();
+    let (cursor_rows, cursor_cols) = cursor_position();
+    let cursor_row = (cursor_rows - 65) / 26 as usize;
+    let cursor_col = (cursor_cols - 8) / 11 as usize;
+    let mut lenx = 0;
     // 处理光标从数字位置转换为具体的token位置
     if cursor_row < lines_with_cursor.len() {
         let len = lines_with_cursor
@@ -135,7 +146,6 @@ pub fn EditorArea(props: EditorAreaProps) -> Element {
             .map(|line| line.iter().map(|token| token.text.len()).sum::<usize>())
             .sum::<usize>();
         if cursor_col < len {
-            let mut lenx = 0;
             for (index, token) in lines_with_cursor[cursor_row].iter().enumerate() {
                 if cursor_col > lenx && cursor_col > lenx + token.text.len(){
                     lenx += token.text.len();
@@ -159,23 +169,38 @@ pub fn EditorArea(props: EditorAreaProps) -> Element {
     }
 
     rsx! {
-        for (_i, line) in lines_with_cursor.iter().enumerate() {
-            div {
-                style: "white-space: pre; font-family: monospace; font-size: 16px; padding: 4px;",
-                for (_j, token) in line.iter().enumerate() {
-                    span {
-                        style: format!(
-                            "color: {}; background: {}; {}",
-                            token.color,
-                            token.background,
-                            if token.is_cursor {
-                                "border-right: 2px solid #000;" // 给光标加上右边框
-                            } else {
-                                ""
+        div {
+            onclick: on_click.clone(),
+            for (_i, line) in lines_with_cursor.iter().enumerate() {
+                div {
+                    style: "white-space: pre; font-family: monospace; font-size: 16px; padding: 4px;",
+                    for (_j, token) in line.iter().enumerate() {
+                        span {
+                            style: format!(
+                                "color: {}; background: {}; {}",
+                                token.color,
+                                token.background,
+                                if token.is_cursor {
+                                    "border-right: 2px solid #000;" // 给光标加上右边框
+                                } else {
+                                    ""
+                                }
+                            ),
+                            "{token.text}"
+                        }
+                        // Render a textarea when cursor is active
+                        if let Some(cursor_line) = lines_with_cursor.get(cursor_row) {
+                            if token.is_cursor && cursor_col <= cursor_line.iter().map(|token| token.text.len()).sum::<usize>() {
+                                textarea {
+                                    value: "{input_buffer}",
+                                    oninput: move |e| input_buffer.set(e.value()),
+                                    style: "position: absolute; opacity: 0; width: 1px; height: 1px; border: none; outline: none; padding: 0;",
+                                }
                             }
-                        ),
-                        "{token.text}"
+                        }
                     }
+
+                    
                 }
             }
         }
