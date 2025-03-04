@@ -1,4 +1,5 @@
 use dioxus::prelude::*;
+use dioxus::events::RenderedElementBacking;
 use crate::components::handle_mouse_click;
 
 #[derive(Props, PartialEq, Clone)]
@@ -19,7 +20,7 @@ impl Token {
     pub fn default(text: String) -> Token {
         Self {
             text,
-            color: "#005",
+            color: "#020",
             background: "#fff",
             is_cursor: false,
             is_input: false,
@@ -35,7 +36,7 @@ impl Token {
         }
     }
     pub fn  update_text(&mut self, text: String) {
-        self.text = text;
+        self.text = self.text.clone() + &text;
     }
 }
 
@@ -45,7 +46,7 @@ pub fn EditorArea(props: EditorAreaProps) -> Element {
     let mut _language = props.language.clone();
     let cursor_position = props.cursor_position.clone();
 
-    let mut input_buffer = use_signal(String::new);
+    let input_buffer = use_signal(String::new);
     let mut row= use_signal(|| 0);
     let mut col= use_signal(|| 0);
     let mut lines = use_signal(|| vec![
@@ -69,8 +70,6 @@ pub fn EditorArea(props: EditorAreaProps) -> Element {
             Token::default("}".to_string()),
         ],
     ]);
-
-
 
     let on_click = move |e| {
         handle_mouse_click(e, cursor_position);
@@ -128,9 +127,10 @@ pub fn EditorArea(props: EditorAreaProps) -> Element {
     // 更新缓存中的内容并进行输入
     let on_input = move |e: Event<FormData>| {
         let new_char = e.value();
-        input_buffer.set(new_char.clone());
 
-        lines()[row()][col()].update_text(new_char.clone());
+        let mut lines_with_cursor = lines();
+        lines_with_cursor[row()][col()].update_text(new_char.clone());
+        lines.set(lines_with_cursor);
     };
     
     rsx! {
@@ -157,7 +157,6 @@ pub fn EditorArea(props: EditorAreaProps) -> Element {
                         if let Some(cursor_line) = lines.get(row()) {
                             if token.is_cursor && col() <= cursor_line.iter().map(|token| token.text.len()).sum::<usize>() {
                                 textarea {
-                                    value: "{input_buffer}",
                                     oninput: on_input.clone(),
                                     autofocus: true,
                                     style: "position: absolute; opacity: 0; width: 1px; height: 18px; border: none; outline: none; padding: 0;",
