@@ -6419,9 +6419,9 @@ checksum = "b6c140620e7ffbb22c2dee59cafe6084a59b5ffc27a8859a5f0d494b5d52b6be"
 
 [[package]]
 name = "uuid"
-version = "1.14.0"
+version = "1.15.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "93d59ca99a559661b96bf898d8fce28ed87935fd2bea9f05983c1464dd6c71b1"
+checksum = "e0f540e3240398cce6128b64ba83fdbdd86129c16a3aa1a3a252efd66eb3d587"
 dependencies = [
  "getrandom 0.3.1",
  "rand 0.9.0",
@@ -7400,9 +7400,9 @@ dependencies = [
 
 [[package]]
 name = "zino"
-version = "0.32.2"
+version = "0.33.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "064652514c49719370e5998e91186a717cab6783eea5bac9be18fe667281f86f"
+checksum = "265118c999bdb42b8dbdfeb3a5f3375128b90ab2f0758bc626887fffaacdefe6"
 dependencies = [
  "cfg-if",
  "serde_json",
@@ -7413,9 +7413,9 @@ dependencies = [
 
 [[package]]
 name = "zino-core"
-version = "0.32.2"
+version = "0.33.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "1509954152ce657f0ae728ffa2a9c8ef110f80638ee3843a81d97292b4ae1eef"
+checksum = "f7ce0b6105ded8ff1c3719b5c055e141427239fbc1443ecc460720ebbe00208c"
 dependencies = [
  "aes-gcm-siv",
  "ahash 0.8.11",
@@ -7457,9 +7457,9 @@ dependencies = [
 
 [[package]]
 name = "zino-dioxus"
-version = "0.13.2"
+version = "0.14.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "1b32b5acc808e0ce8b40b725a613914c9f7bf41bffba5b61e9423bcff90e4f53"
+checksum = "8c936f8cc99bed906ef96c34f28eaaa48146d5e4fcf1f211df8ed079010ccd54"
 dependencies = [
  "chrono",
  "dioxus",
@@ -7480,9 +7480,9 @@ dependencies = [
 
 [[package]]
 name = "zino-storage"
-version = "0.4.1"
+version = "0.5.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "1cd94e788c044c368cc16b6a8eaef6d3c1923fe581bc1ec9d6faefb9ee13f79b"
+checksum = "5ef47e6602c68087e9018cc1cfccd852468525b0ba59ac4fb439855f41992325"
 dependencies = [
  "bytes",
  "etag",
