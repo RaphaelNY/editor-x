@@ -1,13 +1,17 @@
 use std::rc::Rc;
 
 use dioxus::prelude::*;
-use dioxus::events::RenderedElementBacking;
 use crate::components::handle_mouse_click;
 
 #[derive(Props, PartialEq, Clone)]
 pub struct EditorAreaProps {
     language: Signal<String>,
     cursor_position: Signal<(usize, usize)>,
+}
+
+#[derive(Props, PartialEq, Clone)]
+pub struct TextareaProps {
+    on_input: Callback<Event<FormData>>,
 }
 
 #[derive(Clone)]
@@ -43,11 +47,26 @@ impl Token {
 }
 
 #[component]
+pub fn Textarea(props: TextareaProps) -> Element {
+    let on_input = props.on_input.clone();
+    rsx! {
+        textarea {
+            oninput: on_input.clone(),
+            onmounted: move |evt| {
+                // 挂载时自动存储引用
+                let _ = evt.data.set_focus(true);
+            },
+            autofocus: true,
+            style: "position: absolute; opacity: 0; width: 1px; height: 18px; border: none; outline: none; padding: 0;",
+        }
+    }
+}
+
+#[component]
 pub fn EditorArea(props: EditorAreaProps) -> Element {
     // selected language
     let mut _language = props.language.clone();
     let cursor_position = props.cursor_position.clone();
-    let mut textarea_ref = use_signal::<Option<Rc<MountedData>>>(|| None);
 
     let input_buffer = use_signal(String::new);
     let mut row= use_signal(|| 0);
@@ -125,15 +144,6 @@ pub fn EditorArea(props: EditorAreaProps) -> Element {
             lines_with_cursor[cursor_row][cursor_col].is_cursor = true;
         }
         lines.set(lines_with_cursor);
-
-        spawn({
-            let textarea_ref = textarea_ref.clone();
-            async move {
-                if let Some(textarea) = textarea_ref.read().as_ref() {
-                    let _ = textarea.set_focus(true).await;
-                }
-            }
-        });
     };
 
     // 更新缓存中的内容并进行输入
@@ -165,20 +175,12 @@ pub fn EditorArea(props: EditorAreaProps) -> Element {
                             ),
                             "{token.text}"
                         }
-                    }
-                }
-                for (_j, token) in line.iter().enumerate() {
-                    // Render a textarea when cursor is active
-                    if let Some(cursor_line) = lines.get(row()) {
-                        if token.is_cursor && col() <= cursor_line.iter().map(|token| token.text.len()).sum::<usize>() {
-                            textarea {
-                                oninput: on_input.clone(),
-                                onmounted: move |evt| {
-                                    // 挂载时自动存储引用
-                                    textarea_ref.set(Some(evt.data().clone()));
-                                },
-                                autofocus: true,
-                                style: "position: absolute; opacity: 0; width: 1px; height: 18px; border: none; outline: none; padding: 0;",
+                        // Render a textarea when cursor is active
+                        if let Some(cursor_line) = lines.get(row()) {
+                            if token.is_cursor && col() <= cursor_line.iter().map(|token| token.text.len()).sum::<usize>() {
+                                Textarea {
+                                    on_input: on_input.clone(),
+                                }
                             }
                         }
                     }
