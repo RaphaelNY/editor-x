@@ -1,4 +1,4 @@
-use dioxus::{html::{g::end, input::max}, prelude::*};
+use dioxus::prelude::*;
 use crate::components::handle_mouse_click;
 
 #[derive(Props, PartialEq, Clone)]
@@ -86,7 +86,9 @@ pub fn Textarea(props: TextareaProps) -> Element {
             // maxlength: 1,
             oninput: on_input.clone(),
             oncompositionstart: move |_| is_composing.set(true),
-            oncompositionend: move |_| is_composing.set(false),
+            oncompositionend: move |_| {
+                is_composing.set(false);
+            },
             onmounted: move |evt| {
                 // 挂载时自动存储引用
                 let _ = evt.data.set_focus(true);
@@ -147,12 +149,15 @@ pub fn EditorArea(props: EditorAreaProps) -> Element {
             }
         }
 
+        println!("cursor_row: {:?}, cursor_col: {:?}", cursor_row, cursor_col);
+        println!("row: {:?}, col: {:?}", row(), col());
+
         // 处理光标从数字位置转换为具体的token位置
         if cursor_row < lines_with_cursor.len() {
             row.set(cursor_row);
-            let len = lines_with_cursor
+            let len = lines_with_cursor[cursor_row]
                 .iter()
-                .map(|line| line.iter().map(|token| token.display_len()).sum::<usize>())
+                .map(|token| token.display_len())
                 .sum::<usize>(); // byte length
             if cursor_col < len {
                 for (index, token) in lines_with_cursor[cursor_row].iter().enumerate() {
@@ -174,13 +179,14 @@ pub fn EditorArea(props: EditorAreaProps) -> Element {
                         let token_left_text = &token.text[..byte_offset_in_token];
                         let token_right_text = &token.text[byte_offset_in_token..];
         
-                        let mut token_left = Token::default(token_left_text.to_string());
-                        token_left.is_cursor = true;
+                        let token_left = Token::default(token_left_text.to_string());
         
                         let token_right = Token::default(token_right_text.to_string());
+                        let mut empty_token = Token::default("".to_string());
+                        empty_token.is_cursor = true;
                         // 将分割的 token 插入
-                        col.set(index);
-                        lines_with_cursor[cursor_row].splice(index..=index, vec![token_left, token_right]);
+                        col.set(index + 1);
+                        lines_with_cursor[cursor_row].splice(index..=index, vec![token_left, empty_token, token_right]);
                         break;
                     }
                     lenx += token_display_len;
@@ -203,9 +209,6 @@ pub fn EditorArea(props: EditorAreaProps) -> Element {
 
     // 更新缓存中的内容并进行输入
     let on_input = move |e: Event<FormData>| {
-        if is_composing() {
-            return;
-        }
         let current_value = e.value();
         let (mut prev_value, _) = input_buffer();
 
@@ -221,14 +224,40 @@ pub fn EditorArea(props: EditorAreaProps) -> Element {
         println!("prev_value: {:?}", prev_value);
         println!("new_chars: {:?}", new_chars);
 
+        if is_composing() {
+            return;
+        }
+
         prev_value = current_value.clone();
         input_buffer.set((prev_value, 0));
-
+        
         let mut lines_with_cursor = lines();
+        if current_value.ends_with("\n") {
+            let current_row = row();
+            let current_col = col();
+            let current_line = &mut lines_with_cursor[current_row];
+            let tokens_to_move = current_line.split_off(current_col);
+            lines_with_cursor.insert(current_row + 1, tokens_to_move);
+            
+            if lines_with_cursor[current_row].is_empty() {
+                lines_with_cursor[current_row].push(Token::default("\n".to_string()));
+            } 
+            if lines_with_cursor[current_row + 1].is_empty() {
+                lines_with_cursor[current_row + 1].push(Token::default("".to_string()));
+            }
+
+            row.set(current_row + 1);
+            col.set(0);
+            lines.set(lines_with_cursor);
+            return;
+        }
+
         lines_with_cursor[row()][col()].update_text(String::from_iter(new_chars).clone());
         lines.set(lines_with_cursor);
     };
     
+    visualize_lines(&lines(), row(), col());
+
     rsx! {
         div {
             onclick: on_click.clone(),
@@ -250,12 +279,10 @@ pub fn EditorArea(props: EditorAreaProps) -> Element {
                             "{token.text}"
                         }
                         // Render a textarea when cursor is active
-                        if let Some(cursor_line) = lines.get(row()) {
-                            if token.is_cursor && col() <= cursor_line.iter().map(|token| token.text_len()).sum::<usize>() {
-                                Textarea {
-                                    on_input: on_input.clone(),
-                                    is_composing: is_composing.clone(),
-                                }
+                        if token.is_cursor {
+                            Textarea {
+                                on_input: on_input.clone(),
+                                is_composing: is_composing.clone(),
                             }
                         }
                     }
@@ -267,4 +294,29 @@ pub fn EditorArea(props: EditorAreaProps) -> Element {
 
 fn text_len(text: &String) -> usize {
     text.chars().count()
+}
+
+// 用于可视化 lines 中每个 token 的位置以及 is_cursor 的状态
+fn visualize_lines(lines: &Vec<Vec<Token>>, row: usize, col: usize) {
+    for (i, line) in lines.iter().enumerate() {
+        println!("Line {}:", i);  // 输出行号
+        for (j, token) in line.iter().enumerate() {
+            let cursor_status = if token.is_cursor {
+                " <- is_cursor"  // 如果该 token 是光标，标记
+            } else {
+                ""
+            };
+
+            // 输出 token 的位置、文本内容以及是否为光标
+            println!(
+                "    Token {} at position {}: '{}',",
+                j,  // token 在当前行中的位置
+                token.text, // token 的文本内容
+                cursor_status  // 是否是光标位置
+            );
+        }
+    }
+
+    // 输出光标的当前行列位置
+    println!("Cursor is at line {}, column {}.", row, col);
 }
