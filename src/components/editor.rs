@@ -266,6 +266,18 @@ pub fn EditorArea(props: EditorAreaProps) -> Element {
                 hot_move(row, col, &mut lines_with_cursor, 4);
                 lines.set(lines_with_cursor);
             }
+            Key::Backspace => {
+                let mut lines_with_cursor = lines();
+                let current_row = row();
+                let current_col = col(); 
+                lines_with_cursor[current_row][current_col].is_cursor = false;
+                let current_line = &mut lines_with_cursor[current_row];
+                let current_token = &mut current_line[current_col];
+                if current_token.byte_len() != 0 {
+                    current_token.text.pop();
+                }
+                lines.set(lines_with_cursor);
+            }
             _ => {}
         }
     };
@@ -376,7 +388,7 @@ fn hot_move(row: Signal<usize> , mut col: Signal<usize>, line_with_cursor: &mut 
     match move_type {
         1 => {
             let current_line = &mut line_with_cursor[current_row];
-            if current_line[current_col + 1].byte_len() == 1 {
+            if current_line[current_col + 1].text_len() == 1 {
                 current_line[current_col].is_cursor = true;
                 return true
             } else {
