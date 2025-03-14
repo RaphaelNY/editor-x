@@ -51,6 +51,10 @@ impl Token {
         self.is_cursor
     }
 
+    pub fn is_empty(&self) -> bool {
+        self.text.is_empty()
+    }
+
     pub fn  update_text(&mut self, text: String) {
         self.text = self.text.clone() + &text;
     }
@@ -152,6 +156,14 @@ pub fn EditorArea(props: EditorAreaProps) -> Element {
         let mut lines_with_cursor = lines();
 
         for line in lines_with_cursor.iter_mut() {
+            line.retain(|token| {
+                // 移除空的 token
+                if token.is_empty() { 
+                    return false // 返回 false 移除该 token
+                } else {
+                    return true
+                }
+            });
             for token in line.iter_mut() {
                 token.is_cursor = false; // Reset cursor flag to false
             }
@@ -221,9 +233,22 @@ pub fn EditorArea(props: EditorAreaProps) -> Element {
         if is_composing() {
             return;
         }
+        let mut lines_with_cursor = lines();
+        for line in lines_with_cursor.iter_mut() {
+            line.retain(|token| {
+                // 移除空的 token
+                if token.is_empty() { 
+                    return false // 返回 false 移除该 token
+                } else {
+                    return true
+                }
+            });
+            for token in line.iter_mut() {
+                token.is_cursor = false; // Reset cursor flag to false
+            }
+        }
         match e.key() {
             Key::ArrowLeft => {
-                let mut lines_with_cursor = lines();
                 let current_row = row();
                 let current_col = col();
                 lines_with_cursor[current_row][current_col].is_cursor = false;
@@ -234,7 +259,6 @@ pub fn EditorArea(props: EditorAreaProps) -> Element {
                 lines.set(lines_with_cursor);
             }
             Key::ArrowRight => {
-                let mut lines_with_cursor = lines();
                 let current_row = row();
                 let current_col = col();
                 lines_with_cursor[current_row][current_col].is_cursor = false; 
@@ -245,7 +269,6 @@ pub fn EditorArea(props: EditorAreaProps) -> Element {
                 lines.set(lines_with_cursor);
             }
             Key::ArrowUp => {
-                let mut lines_with_cursor = lines();
                 let current_row = row();
                 let current_col = col();
                 lines_with_cursor[current_row][current_col].is_cursor = false;
@@ -256,7 +279,6 @@ pub fn EditorArea(props: EditorAreaProps) -> Element {
                 lines.set(lines_with_cursor);
             }
             Key::ArrowDown => {
-                let mut lines_with_cursor = lines();
                 let current_row = row();
                 let current_col = col();
                 lines_with_cursor[current_row][current_col].is_cursor = false;
@@ -267,13 +289,11 @@ pub fn EditorArea(props: EditorAreaProps) -> Element {
                 lines.set(lines_with_cursor);
             }
             Key::Backspace => {
-                let mut lines_with_cursor = lines();
                 let current_row = row();
                 let current_col = col(); 
-                lines_with_cursor[current_row][current_col].is_cursor = false;
                 let current_line = &mut lines_with_cursor[current_row];
-                let current_token = &mut current_line[current_col];
-                if current_token.byte_len() != 0 {
+                let current_token = &mut current_line[current_col - 1];
+                if current_token.byte_len() > 0 {
                     current_token.text.pop();
                 }
                 lines.set(lines_with_cursor);
