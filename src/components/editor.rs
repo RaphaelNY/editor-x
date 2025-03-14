@@ -249,19 +249,20 @@ pub fn EditorArea(props: EditorAreaProps) -> Element {
             Key::ArrowUp => {
                 let mut lines_with_cursor = lines();
                 let current_row = row();
-                let current_col = col();
                 if current_row > 0 {
                     row.set(current_row - 1);
                 }
+                hot_move(row, col, &mut lines_with_cursor, 3);
                 lines.set(lines_with_cursor);
             }
             Key::ArrowDown => {
                 let mut lines_with_cursor = lines();
                 let current_row = row();
-                let current_col = col();
                 if current_row < lines_with_cursor.len() - 1 {
                     row.set(current_row + 1);
                 }
+                hot_move(row, col, &mut lines_with_cursor, 4);
+                lines.set(lines_with_cursor);
             }
             _ => {}
         }
@@ -366,18 +367,32 @@ fn display_sum(col: usize, tokens: &Vec<Token>) -> usize {
     tokens[..col].iter().map(|token| token.display_len()).sum()
 }
 
-fn hot_move(row: Signal<usize> , col: Signal<usize>, line_with_cursor: &mut Vec<Vec<Token>>, move_type: u8) -> bool {
+fn hot_move(row: Signal<usize> , mut col: Signal<usize>, line_with_cursor: &mut Vec<Vec<Token>>, move_type: u8) -> bool {
     let current_row = row();
     let current_col = col();
 
     match move_type {
         1 => {
             let current_line = &mut line_with_cursor[current_row];
-            let pre_cpls = display_sum(current_col + 1, &current_line);
-            let mut sum = 0;
             if current_line[current_col + 1].byte_len() == 1 {
                 current_line[current_col].is_cursor = true;
                 return true
+            } else {
+                let lenx = current_line[current_col + 1].byte_len();
+                if let Some(c) = current_line[current_col + 1].text.chars().last() {
+                    if c.is_ascii() {lenx - 1} else {lenx - 2};
+                    let token_left_text =&current_line[current_col + 1].text[..lenx];
+                    let token_right_text = &current_line[current_col + 1].text[lenx..];
+                    let token_left = Token::default(token_left_text.to_string());
+        
+                    let token_right = Token::default(token_right_text.to_string());
+                    let mut empty_token = Token::default("".to_string());
+                    empty_token.is_cursor = true;
+
+                    col.set(current_col + 2);
+                    current_line.splice(current_col + 1..=current_col + 1, vec![token_left, empty_token, token_right]);
+                    return true;
+                }
             }
             false
         } // left
@@ -443,7 +458,46 @@ fn hot_move(row: Signal<usize> , col: Signal<usize>, line_with_cursor: &mut Vec<
             };
             false
         } // up
-        4 => { false } // down
+        4 => {
+            let lines = &mut line_with_cursor[current_row..current_row + 1];
+            let pre_line_len = display_sum(current_col, &lines[0]);
+            let current_line_len = display_sum(lines[1].len(), &lines[1]);
+            if pre_line_len >= current_line_len {
+                let len = lines[1].len();
+                lines[1][len].is_cursor = true;
+            } else {
+                let mut sum = 0;
+                for (index, token) in lines[1].iter_mut().enumerate() {
+                    if token.display_len() + sum < pre_line_len {
+                        sum += token.display_len();
+                        continue
+                    } else if token.display_len() + sum == pre_line_len {
+                        token.is_cursor = true;
+                    } else {
+                        let mut sumx = 0;
+                        for (_, c) in token.text.chars().enumerate() {
+                            let char_width = if c.is_ascii() { 1 } else { 2 };
+                            sumx += char_width;
+                            if sumx + sum >= pre_line_len {
+                                let token_left_text = &token.text[..sumx];
+                                let token_right_text = &token.text[sumx..];
+
+                                let token_left = Token::default(token_left_text.to_string());
+        
+                                let token_right = Token::default(token_right_text.to_string());
+                                let mut empty_token = Token::default("".to_string());
+                                empty_token.is_cursor = true;
+                                line_with_cursor[current_row].splice(index..=index, vec![token_left, empty_token, token_right]);
+                                return true;
+                            }
+                        }
+                        break;
+                    }
+                    sum += token.display_len();
+                }
+            }; 
+            false
+        } // down
         _ => { false }
     }
 
