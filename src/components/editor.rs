@@ -1,5 +1,9 @@
 use dioxus::prelude::*;
-use crate::components::handle_mouse_click;
+use crate::components::{debug::visualize_lines, handle_mouse_click};
+
+static DEBUG: bool = true;
+static DEBUG0: bool = true;
+static DEBUG1: bool = false;
 
 #[derive(Props, PartialEq, Clone)]
 pub struct EditorAreaProps {
@@ -10,6 +14,7 @@ pub struct EditorAreaProps {
 #[derive(Props, PartialEq, Clone)]
 pub struct TextareaProps {
     on_input: Callback<Event<FormData>>,
+    on_keydown: Callback<Event<KeyboardData>>,
     is_composing: Signal<bool>,
 }
 
@@ -43,6 +48,10 @@ impl Token {
         }
     }
     
+    pub fn cursor_check(&self) -> bool {
+        self.is_cursor
+    }
+
     pub fn  update_text(&mut self, text: String) {
         self.text = self.text.clone() + &text;
     }
@@ -80,11 +89,13 @@ const LINE_HEIGHT: f32 = 26.0; // 假设行高26px
 #[component]
 pub fn Textarea(props: TextareaProps) -> Element {
     let on_input = props.on_input.clone();
+    let on_keydown = props.on_keydown.clone();
     let mut is_composing = props.is_composing.clone();
     rsx! {
         textarea {
             // maxlength: 1,
             oninput: on_input.clone(),
+            onkeydown: on_keydown.clone(),
             oncompositionstart: move |_| is_composing.set(true),
             oncompositionend: move |_| {
                 is_composing.set(false);
@@ -149,8 +160,10 @@ pub fn EditorArea(props: EditorAreaProps) -> Element {
             }
         }
 
-        println!("cursor_row: {:?}, cursor_col: {:?}", cursor_row, cursor_col);
-        println!("row: {:?}, col: {:?}", row(), col());
+        if DEBUG && DEBUG0 {
+            println!("cursor_row: {:?}, cursor_col: {:?}", cursor_row, cursor_col);
+            println!("row: {:?}, col: {:?}", row(), col());
+        }
 
         // 处理光标从数字位置转换为具体的token位置
         if cursor_row < lines_with_cursor.len() {
@@ -207,6 +220,53 @@ pub fn EditorArea(props: EditorAreaProps) -> Element {
         input_buffer.set((String::new(), 0));
     };
 
+    let on_keydown = move |e: Event<KeyboardData>| {
+        if is_composing() {
+            return;
+        }
+        match e.key() {
+            Key::ArrowLeft => {
+                let mut lines_with_cursor = lines();
+                let current_row = row();
+                let current_col = col();
+                if current_col > 0 {
+                    lines_with_cursor[current_row][current_col].is_cursor = false;
+                    col.set(current_col - 1);
+                }
+                hot_move(row, col, &mut lines_with_cursor, 1);
+                lines.set(lines_with_cursor);
+            }
+            Key::ArrowRight => {
+                let mut lines_with_cursor = lines();
+                let current_row = row();
+                let current_col = col();
+                if current_col < lines_with_cursor[current_row].len() - 1 {
+                    col.set(current_col + 1);
+                }
+                hot_move(row, col, &mut lines_with_cursor, 2);
+                lines.set(lines_with_cursor);
+            }
+            Key::ArrowUp => {
+                let mut lines_with_cursor = lines();
+                let current_row = row();
+                let current_col = col();
+                if current_row > 0 {
+                    row.set(current_row - 1);
+                }
+                lines.set(lines_with_cursor);
+            }
+            Key::ArrowDown => {
+                let mut lines_with_cursor = lines();
+                let current_row = row();
+                let current_col = col();
+                if current_row < lines_with_cursor.len() - 1 {
+                    row.set(current_row + 1);
+                }
+            }
+            _ => {}
+        }
+    };
+
     // 更新缓存中的内容并进行输入
     let on_input = move |e: Event<FormData>| {
         let current_value = e.value();
@@ -220,10 +280,12 @@ pub fn EditorArea(props: EditorAreaProps) -> Element {
             vec![]
         };
         
-        println!("current_value: {:?}", current_value);
-        println!("prev_value: {:?}", prev_value);
-        println!("new_chars: {:?}", new_chars);
-
+        if DEBUG && DEBUG0 {
+            println!("current_value: {:?}", current_value);
+            println!("prev_value: {:?}", prev_value);
+            println!("new_chars: {:?}", new_chars);
+        }
+        
         if is_composing() {
             return;
         }
@@ -232,6 +294,7 @@ pub fn EditorArea(props: EditorAreaProps) -> Element {
         input_buffer.set((prev_value, 0));
         
         let mut lines_with_cursor = lines();
+
         if current_value.ends_with("\n") {
             let current_row = row();
             let current_col = col();
@@ -256,7 +319,9 @@ pub fn EditorArea(props: EditorAreaProps) -> Element {
         lines.set(lines_with_cursor);
     };
     
-    visualize_lines(&lines(), row(), col());
+    if DEBUG && DEBUG1 {
+        visualize_lines(&lines(), row(), col());
+    }
 
     rsx! {
         div {
@@ -282,6 +347,7 @@ pub fn EditorArea(props: EditorAreaProps) -> Element {
                         if token.is_cursor {
                             Textarea {
                                 on_input: on_input.clone(),
+                                on_keydown: on_keydown.clone(),
                                 is_composing: is_composing.clone(),
                             }
                         }
@@ -296,27 +362,89 @@ fn text_len(text: &String) -> usize {
     text.chars().count()
 }
 
-// 用于可视化 lines 中每个 token 的位置以及 is_cursor 的状态
-fn visualize_lines(lines: &Vec<Vec<Token>>, row: usize, col: usize) {
-    for (i, line) in lines.iter().enumerate() {
-        println!("Line {}:", i);  // 输出行号
-        for (j, token) in line.iter().enumerate() {
-            let cursor_status = if token.is_cursor {
-                " <- is_cursor"  // 如果该 token 是光标，标记
-            } else {
-                ""
-            };
+fn display_sum(col: usize, tokens: &Vec<Token>) -> usize {
+    tokens[..col].iter().map(|token| token.display_len()).sum()
+}
 
-            // 输出 token 的位置、文本内容以及是否为光标
-            println!(
-                "    Token {} at position {}: '{}',",
-                j,  // token 在当前行中的位置
-                token.text, // token 的文本内容
-                cursor_status  // 是否是光标位置
-            );
-        }
+fn hot_move(row: Signal<usize> , col: Signal<usize>, line_with_cursor: &mut Vec<Vec<Token>>, move_type: u8) -> bool {
+    let current_row = row();
+    let current_col = col();
+
+    match move_type {
+        1 => {
+            let current_line = &mut line_with_cursor[current_row];
+            let pre_cpls = display_sum(current_col + 1, &current_line);
+            let mut sum = 0;
+            if current_line[current_col + 1].byte_len() == 1 {
+                current_line[current_col].is_cursor = true;
+                return true
+            }
+            false
+        } // left
+        2 => {
+            let current_line = &mut line_with_cursor[current_row];
+            if current_line[current_col].byte_len() == 1 {
+                current_line[current_col].is_cursor = true;
+            }
+            let token = current_line[current_col].clone();
+            for (_, c) in token.text.chars().enumerate() {
+                let char_width = if c.is_ascii() { 1 } else { 2 };
+                let token_left_text = &token.text[..char_width];
+                let token_right_text = &token.text[char_width..];
+
+                let token_left = Token::default(token_left_text.to_string());
+        
+                let token_right = Token::default(token_right_text.to_string());
+                let mut empty_token = Token::default("".to_string());
+                empty_token.is_cursor = true;
+                current_line.splice(current_col..=current_col, vec![token_left, empty_token, token_right]);
+                return true
+            }
+
+            false
+        } // right 
+        3 => {
+            let lines = &mut line_with_cursor[current_row..current_row + 1];
+            let pre_line_len = display_sum(current_col, &lines[1]);
+            let current_line_len = display_sum(lines[0].len(), &lines[0]);
+            if pre_line_len >= current_line_len {
+                let len = lines[0].len();
+                lines[0][len].is_cursor = true;
+            } else {
+                let mut sum = 0;
+                for (index, token) in lines[0].iter_mut().enumerate() {
+                    if token.display_len() + sum < pre_line_len {
+                        sum += token.display_len();
+                        continue
+                    } else if token.display_len() + sum == pre_line_len {
+                        token.is_cursor = true;
+                    } else {
+                        let mut sumx = 0;
+                        for (_, c) in token.text.chars().enumerate() {
+                            let char_width = if c.is_ascii() { 1 } else { 2 };
+                            sumx += char_width;
+                            if sumx + sum >= pre_line_len {
+                                let token_left_text = &token.text[..sumx];
+                                let token_right_text = &token.text[sumx..];
+
+                                let token_left = Token::default(token_left_text.to_string());
+        
+                                let token_right = Token::default(token_right_text.to_string());
+                                let mut empty_token = Token::default("".to_string());
+                                empty_token.is_cursor = true;
+                                line_with_cursor[current_row].splice(index..=index, vec![token_left, empty_token, token_right]);
+                                return true;
+                            }
+                        }
+                        break;
+                    }
+                    sum += token.display_len();
+                }
+            };
+            false
+        } // up
+        4 => { false } // down
+        _ => { false }
     }
 
-    // 输出光标的当前行列位置
-    println!("Cursor is at line {}, column {}.", row, col);
 }
