@@ -298,6 +298,13 @@ pub fn EditorArea(props: EditorAreaProps) -> Element {
                 }
                 lines.set(lines_with_cursor);
             }
+            Key::Tab => {
+                let current_row = row();
+                let current_line = &mut lines_with_cursor[current_row];
+                let tab_token = Token::default("    ".to_string());
+                current_line.insert(0, tab_token);
+                lines.set(lines_with_cursor);
+            },
             _ => {}
         }
     };
