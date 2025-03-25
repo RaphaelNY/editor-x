@@ -10,11 +10,14 @@ edition = "2021"
 crossbeam = "0.8.4"
 dioxus = { version = "0.6.3", features = ["desktop", "html", "web"] }
 dioxus-web = "0.6.3"
+fxhash = "0.2.1"
+ropey = "1.6.0"
+smallvec = "1.14.0"
 tree-sitter = "0.25.3"
 tree-sitter-highlight = "0.25.3"
 tree-sitter-javascript = "0.23.1"
 syntect = "5.2.0"
-tokio = { version = "1.0.1", features = ["full"] }
+tokio = { version = "1.44.1", features = ["full"] }
 zino = {version = "0.33.0", features = ["dioxus"]}
 
 [features]

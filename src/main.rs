@@ -1,4 +1,7 @@
+mod praser;
+
 use components::{EditorArea, Toolbar};
+use praser::*;
 use dioxus::prelude::*;
 
 mod components;
