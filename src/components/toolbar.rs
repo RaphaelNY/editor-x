@@ -17,9 +17,9 @@ pub fn Toolbar(props: ToolbarProps) -> Element {
 
     rsx! {
         div {
-            style: "background: #f0f0f0; padding: 8px; border-bottom: 1px solid #ddd; width: 100vw; height: 40px; display: flex; align-items: center;",
+            style: "flex: 0 1 auto; background: #f0f0f0; border-bottom: 1px solid #ddd; width: 100%; height: 40px; display: flex; align-items: center;",
 
-            button { class: "toolbar-btn", style: "margin-right: 4px", "新建" }
+            button { class: "toolbar-btn", style: "margin-left: 4px, margin-right: 4px", "新建" }
             button { class: "toolbar-btn", style: "margin-right: 4px", "打开" }
             button { class: "toolbar-btn", style: "margin-right: 4px", "保存" }
             button { class: "toolbar-btn", style: "margin-right: 4px", "另存为" }
