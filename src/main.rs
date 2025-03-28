@@ -1,7 +1,6 @@
 mod praser;
 
 use components::{EditorArea, Toolbar};
-use praser::*;
 use dioxus::prelude::*;
 
 mod components;
@@ -16,7 +15,7 @@ fn App() -> Element {
     let cursor_position = use_signal(|| (65, 8));
     rsx! {
         div {
-            style: "width: 100vw; height: 100vh; display: flex; flex-direction: column;",
+            style: "width: 100%; height: 100%; display: flex; flex-direction: column; overflow: hidden;",
 
             Toolbar {language: language },
 
