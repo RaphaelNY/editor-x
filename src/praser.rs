@@ -80,6 +80,27 @@ impl SyntaxBlocks {
     pub fn clear(&mut self) {
         self.blocks.clear();
     }
+    
+    /// 统计前 col_index 个节点的字符总长度
+    pub fn char_count_up_to(&self, line: usize, col_index: usize) -> usize {
+        let mut char_count = 0;
+        if let Some(syntax_line) = self.blocks.get(&line) {
+            for (i, (_, text_node)) in syntax_line.iter().enumerate() {
+                if i >= col_index {
+                    break;
+                }
+                match text_node {
+                    TextNode::Range(range) => {
+                        char_count += range.end - range.start;
+                    }
+                    TextNode::LineOfChars { len, .. } => {
+                        char_count += len;
+                    }
+                }
+            }
+        }
+        char_count
+    }
 }
 
 const GENERIC_KEYWORDS: &[&str] = &[

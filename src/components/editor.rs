@@ -144,7 +144,7 @@ pub fn EditorArea(props: EditorAreaProps) -> Element {
     ]);
 
     let on_click = move |e| {
-        handle_mouse_click(e, cursor_position);
+        // handle_mouse_click(e, cursor_position);
         println!("{:?}", cursor_position());
 
         // 更新光标位置，设置当前光标为特定位置
@@ -367,6 +367,7 @@ pub fn EditorArea(props: EditorAreaProps) -> Element {
 
     rsx! {
         div {
+            style: "flex: 1 1 auto; overflow: hidden; font-family: monospace; font-size: 16px;",
             onclick: on_click.clone(),
             onkeydown: on_keydown.clone(),
             for (_i, line) in lines.iter().enumerate() {
