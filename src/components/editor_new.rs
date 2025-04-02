@@ -1,8 +1,9 @@
 use dioxus::logger::tracing::span;
 use ropey::Rope;
 use dioxus::prelude::*;
-use crate::components::{debug::visualize_lines, handle_mouse_click};
+use crate::components::handle_mouse_click;
 use crate::praser::{parse, SyntaxBlocks, SyntaxType, TextNode};
+use std::f32::consts::E;
 use std::sync::{Arc, Mutex};
 use tokio::task;
 
@@ -26,6 +27,7 @@ pub struct TextareaProps {
 }
 
 #[allow(unused)]
+#[derive(Debug)]
 pub struct Editor {
     text: Arc<Mutex<Rope>>,
     cursor_position: (usize, usize), // (line, column)
@@ -141,6 +143,40 @@ impl Editor {
         self.cursor_position = cursor_position;
     }
 
+    /// 换行
+    pub fn move_cursor_enter(&mut self) {
+        let cursor_pos = self.cursor_position_to_byte_offset();
+        {
+            let mut rope = self.text.lock().unwrap();
+            rope.insert(cursor_pos, "\n");
+        }
+        self.cursor_position = (self.cursor_position.0 + 1, 0);
+    }
+
+    /// 删除字符(delete)
+    pub fn move_cursor_delete(&mut self, length: usize) {
+        let mut rope = self.text.lock().unwrap();
+        let cursor_pos = self.cursor_position_to_byte_offset();
+        if cursor_pos + length <= rope.len_chars() {
+            rope.remove(cursor_pos..cursor_pos + length);
+        }
+    }
+
+    /// 删除字符(backspace)
+    pub fn move_cursor_backspace(&mut self, length: usize) {
+        let mut rope = self.text.lock().unwrap();
+        let cursor_pos = self.cursor_position_to_byte_offset();
+        if cursor_pos >= length {
+            rope.remove(cursor_pos - length..cursor_pos);
+        }
+        self.cursor_position = (self.cursor_position.0, self.cursor_position.1.saturating_sub(length));
+    }
+
+    pub fn move_cursor_tab(&mut self) {
+        self.insert_text("    ");
+        self.cursor_position = (self.cursor_position.0, self.cursor_position.1);
+    }
+
     /// 解析文本并返回语法块
     pub fn parse_text(&self) -> SyntaxBlocks {
         let rope = self.text.lock().unwrap();
@@ -155,6 +191,31 @@ impl Editor {
 	}
 }
 
+#[derive(Debug, Clone, PartialEq, Props)]
+pub struct TextAreaProps {
+    pub on_input: Callback<Event<FormData>>,
+    pub editor: Signal<Editor>,
+}
+#[component]
+pub fn Textarea(props: TextAreaProps) -> Element {
+    rsx! {
+        textarea {
+            style: format!(
+                "position: absolute; top: {}px; left: {}px; width: 1px; height: {}px; opacity: 0;",
+                props.editor.with(|e| e.cursor_position.0 * LINE_HEIGHT + 65),
+                props.editor.with(|e| (e.cursor_position.1 + 1) * CHAR_WIDTH),
+                LINE_HEIGHT
+            ),
+            oninput: props.on_input.clone(),
+            autofocus: true,
+            onmounted: move |evt| {
+                // 挂载时自动存储引用
+                let _ = evt.data.set_focus(true);
+            },
+        },
+    }
+}
+
 #[component]
 pub fn EditorArea(props: EditorAreaProps) -> Element {
 	let mut editor = use_signal(|| {
@@ -165,9 +226,12 @@ pub fn EditorArea(props: EditorAreaProps) -> Element {
         editor
     });
     let cursor_position = props.cursor_position.clone();
+    let is_handled_by_keydown = Signal::new(false);
 
     let on_click = move |e| {
-		
+        if DEBUG {
+            println!("Click: {:?}", e);
+        }	
         editor.with(|editorx| {
             handle_mouse_click(e, cursor_position.clone(), LINE_HEIGHT, CHAR_WIDTH, &editorx.text.lock().unwrap());
         });
@@ -175,16 +239,48 @@ pub fn EditorArea(props: EditorAreaProps) -> Element {
         editor.with_mut(|editorx| editorx.set_cursor_position(line, col));
     };
 
-    let on_keydown = move |e: Event<KeyboardData>| {
-        editor.with_mut(|editorx| {
-            match e.key() {
-                Key::ArrowLeft=>editorx.move_cursor_left(),
-                Key::ArrowRight=>editorx.move_cursor_right(),
-                Key::ArrowUp=>editorx.move_cursor_up(),
-                Key::ArrowDown=>editorx.move_cursor_down(),
-				_=>{}
+    let on_keydown = {
+        let mut is_handled_by_keydown = is_handled_by_keydown.clone();
+        move |e: Event<KeyboardData>| {
+            if DEBUG {
+                println!("Keydown: {:?}", e.key());
             }
-        });
+            editor.with_mut(|editorx| {
+                match e.key() {
+                    Key::ArrowLeft=>editorx.move_cursor_left(),
+                    Key::ArrowRight=>editorx.move_cursor_right(),
+                    Key::ArrowUp=>editorx.move_cursor_up(),
+                    Key::ArrowDown=>editorx.move_cursor_down(),
+                    Key::Enter=>editorx.move_cursor_enter(),
+                    Key::Backspace=>editorx.move_cursor_backspace(1),
+                    Key::Delete=>editorx.move_cursor_delete(1),
+                    Key::Tab=>editorx.move_cursor_tab(),
+                    _=>{}
+                }
+            });
+            is_handled_by_keydown.set(true); // 标记按键已处理
+        }
+    };
+
+    let on_input = {
+        let mut is_handled_by_keydown = is_handled_by_keydown.clone();
+        move |e: Event<FormData>| {
+            if is_handled_by_keydown() {
+                // 如果按键已被 onkeydown 处理，则跳过
+                is_handled_by_keydown.set(false); // 重置标志
+                return;
+            }
+            if DEBUG {
+                println!("Input: {:?}", e.data());
+            }
+            editor.with_mut(|editorx| {
+                if let Some(last_char) = e.value().chars().last() {
+                    if last_char != '\n' || last_char != '\t' {
+                        editorx.insert_text(&last_char.to_string());
+                    }
+                }
+            });
+        }
     };
 
     let syntax_blocks = editor.with(|e| e.parse_text());
@@ -193,7 +289,12 @@ pub fn EditorArea(props: EditorAreaProps) -> Element {
         div {
             style: "flex: 1 1 auto; overflow: hidden; font-family: monospace; font-size: 16px;",
             onclick: on_click.clone(),
-            onkeydown: on_keydown.clone(),
+            onkeydown: on_keydown.clone(), 
+            // 隐藏的 textarea
+            Textarea {
+                on_input: on_input.clone(),
+                editor: editor.clone(),
+            }
             for line_index in 0..syntax_blocks.len() {
                 div {
                     style: "white-space: pre; font-family: monospace; font-size: 16px; padding: 4px;",
