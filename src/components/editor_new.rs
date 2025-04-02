@@ -209,7 +209,6 @@ pub fn Textarea(props: TextAreaProps) -> Element {
             oninput: props.on_input.clone(),
             autofocus: true,
             onmounted: move |evt| {
-                // 挂载时自动存储引用
                 let _ = evt.data.set_focus(true);
             },
         },
@@ -258,7 +257,7 @@ pub fn EditorArea(props: EditorAreaProps) -> Element {
                     _=>{}
                 }
             });
-            is_handled_by_keydown.set(true); // 标记按键已处理
+            is_handled_by_keydown.set(true);
         }
     };
 
@@ -266,8 +265,7 @@ pub fn EditorArea(props: EditorAreaProps) -> Element {
         let mut is_handled_by_keydown = is_handled_by_keydown.clone();
         move |e: Event<FormData>| {
             if is_handled_by_keydown() {
-                // 如果按键已被 onkeydown 处理，则跳过
-                is_handled_by_keydown.set(false); // 重置标志
+                is_handled_by_keydown.set(false);
                 return;
             }
             if DEBUG {
@@ -290,7 +288,6 @@ pub fn EditorArea(props: EditorAreaProps) -> Element {
             style: "flex: 1 1 auto; overflow: hidden; font-family: monospace; font-size: 16px;",
             onclick: on_click.clone(),
             onkeydown: on_keydown.clone(), 
-            // 隐藏的 textarea
             Textarea {
                 on_input: on_input.clone(),
                 editor: editor.clone(),
@@ -301,12 +298,12 @@ pub fn EditorArea(props: EditorAreaProps) -> Element {
                     if editor.with(|e| e.is_cursor_at(line_index, 0)) {
                         span {
                             style: format!("width: {}px; display: inline-block; border-right: 2px solid black;", CHAR_WIDTH),
-                            " " // 空白字符
+                            " "
                         }
                     } else {
                         span {
                             style: format!("width: {}px; display: inline-block;", CHAR_WIDTH),
-                            " " // 空白字符
+                            " "
                         }
                     }
                     for (col_index, (syntax_type, text_node)) in syntax_blocks.get_line(line_index).iter().enumerate() {
