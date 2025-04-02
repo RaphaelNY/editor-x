@@ -250,7 +250,7 @@ pub fn EditorArea(props: EditorAreaProps) -> Element {
     });
     let cursor_position = props.cursor_position.clone();
     let is_handled_by_keydown = Signal::new(false);
-    let mut textarea_focus: Signal<Option<std::rc::Rc<MountedData>>> = use_signal(|| None);
+    let textarea_focus: Signal<Option<std::rc::Rc<MountedData>>> = use_signal(|| None);
 
     let on_click = move |e| {
         if DEBUG {
@@ -272,7 +272,6 @@ pub fn EditorArea(props: EditorAreaProps) -> Element {
     let on_keydown = {
         let mut is_handled_by_keydown = is_handled_by_keydown.clone();
         move |e: Event<KeyboardData>| {
-            e.prevent_default();
             if DEBUG {
                 println!("Keydown: {:?}", e.key());
             }
