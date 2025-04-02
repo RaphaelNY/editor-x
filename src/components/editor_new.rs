@@ -1,8 +1,8 @@
-use dioxus::logger::tracing::span;
-use ropey::Rope;
-use dioxus::prelude::*;
 use crate::components::handle_mouse_click;
 use crate::praser::{parse, SyntaxBlocks, SyntaxType, TextNode};
+use dioxus::logger::tracing::span;
+use dioxus::prelude::*;
+use ropey::Rope;
 use std::f32::consts::E;
 use std::sync::{Arc, Mutex};
 use tokio::task;
@@ -113,7 +113,12 @@ impl Editor {
         } else if cursor_position.0 > 0 {
             // 向上移动光标到上一行的结尾
             cursor_position.0 -= 1;
-            cursor_position.1 = self.text.lock().unwrap().line(cursor_position.0).len_chars();
+            cursor_position.1 = self
+                .text
+                .lock()
+                .unwrap()
+                .line(cursor_position.0)
+                .len_chars();
         }
 
         self.cursor_position = cursor_position;
@@ -126,7 +131,8 @@ impl Editor {
 
         if cursor_position.0 < rope.lines().count() - 1 {
             cursor_position.0 += 1;
-            cursor_position.1 = std::cmp::min(cursor_position.1, rope.line(cursor_position.0).len_chars());
+            cursor_position.1 =
+                std::cmp::min(cursor_position.1, rope.line(cursor_position.0).len_chars());
         }
 
         self.cursor_position = cursor_position;
@@ -137,7 +143,14 @@ impl Editor {
         let mut cursor_position = self.cursor_position;
         if cursor_position.0 > 0 {
             cursor_position.0 -= 1;
-            cursor_position.1 = std::cmp::min(cursor_position.1, self.text.lock().unwrap().line(cursor_position.0).len_chars());
+            cursor_position.1 = std::cmp::min(
+                cursor_position.1,
+                self.text
+                    .lock()
+                    .unwrap()
+                    .line(cursor_position.0)
+                    .len_chars(),
+            );
         }
 
         self.cursor_position = cursor_position;
@@ -169,11 +182,17 @@ impl Editor {
         if cursor_pos >= length {
             rope.remove(cursor_pos - length..cursor_pos);
         }
-        self.cursor_position = (self.cursor_position.0, self.cursor_position.1.saturating_sub(length));
+        self.cursor_position = (
+            self.cursor_position.0,
+            self.cursor_position.1.saturating_sub(length),
+        );
     }
 
     pub fn move_cursor_tab(&mut self) {
         self.insert_text("    ");
+        for _ in 0..4 {
+            self.insert_text(" ");
+        }
         self.cursor_position = (self.cursor_position.0, self.cursor_position.1);
     }
 
@@ -185,19 +204,23 @@ impl Editor {
         syntax_blocks
     }
 
-	/// 检查光标是否在给定行列
-	pub fn is_cursor_at(&self, line: usize, col: usize) -> bool {
-		self.cursor_position == (line, col)
-	}
+    /// 检查光标是否在给定行列
+    pub fn is_cursor_at(&self, line: usize, col: usize) -> bool {
+        self.cursor_position == (line, col)
+    }
 }
 
 #[derive(Debug, Clone, PartialEq, Props)]
 pub struct TextAreaProps {
     pub on_input: Callback<Event<FormData>>,
+    pub on_keydown: Callback<Event<KeyboardData>>,
     pub editor: Signal<Editor>,
+    pub textarea_focus: Signal<Option<std::rc::Rc<MountedData>>>,
 }
+
 #[component]
 pub fn Textarea(props: TextAreaProps) -> Element {
+    let mut textarea_focus = props.textarea_focus.clone();
     rsx! {
         textarea {
             style: format!(
@@ -207,9 +230,10 @@ pub fn Textarea(props: TextAreaProps) -> Element {
                 LINE_HEIGHT
             ),
             oninput: props.on_input.clone(),
+            onkeydown: props.on_keydown.clone(),
             autofocus: true,
             onmounted: move |evt| {
-                let _ = evt.data.set_focus(true);
+                textarea_focus.set(Some(evt.data));
             },
         },
     }
@@ -217,22 +241,29 @@ pub fn Textarea(props: TextAreaProps) -> Element {
 
 #[component]
 pub fn EditorArea(props: EditorAreaProps) -> Element {
-	let mut editor = use_signal(|| {
+    let mut editor = use_signal(|| {
         let mut editor = Editor::new();
         // 插入调试文本
         editor.insert_text("fn main() {\n    println!(\"Hello, world!\");\n}\n");
-		editor.set_cursor_position(0, 0);
+        editor.set_cursor_position(0, 0);
         editor
     });
     let cursor_position = props.cursor_position.clone();
     let is_handled_by_keydown = Signal::new(false);
+    let mut textarea_focus: Signal<Option<std::rc::Rc<MountedData>>> = use_signal(|| None);
 
     let on_click = move |e| {
         if DEBUG {
             println!("Click: {:?}", e);
-        }	
+        }
         editor.with(|editorx| {
-            handle_mouse_click(e, cursor_position.clone(), LINE_HEIGHT, CHAR_WIDTH, &editorx.text.lock().unwrap());
+            handle_mouse_click(
+                e,
+                cursor_position.clone(),
+                LINE_HEIGHT,
+                CHAR_WIDTH,
+                &editorx.text.lock().unwrap(),
+            );
         });
         let (line, col) = cursor_position();
         editor.with_mut(|editorx| editorx.set_cursor_position(line, col));
@@ -241,23 +272,46 @@ pub fn EditorArea(props: EditorAreaProps) -> Element {
     let on_keydown = {
         let mut is_handled_by_keydown = is_handled_by_keydown.clone();
         move |e: Event<KeyboardData>| {
+            e.prevent_default();
             if DEBUG {
                 println!("Keydown: {:?}", e.key());
             }
-            editor.with_mut(|editorx| {
-                match e.key() {
-                    Key::ArrowLeft=>editorx.move_cursor_left(),
-                    Key::ArrowRight=>editorx.move_cursor_right(),
-                    Key::ArrowUp=>editorx.move_cursor_up(),
-                    Key::ArrowDown=>editorx.move_cursor_down(),
-                    Key::Enter=>editorx.move_cursor_enter(),
-                    Key::Backspace=>editorx.move_cursor_backspace(1),
-                    Key::Delete=>editorx.move_cursor_delete(1),
-                    Key::Tab=>editorx.move_cursor_tab(),
-                    _=>{}
+            editor.with_mut(|editorx| match e.key() {
+                Key::ArrowLeft => {
+                    editorx.move_cursor_left();
+                    e.prevent_default();
                 }
+                Key::ArrowRight => {
+                    editorx.move_cursor_right();
+                    e.prevent_default();
+                }
+                Key::ArrowUp => {
+                    editorx.move_cursor_up();
+                    e.prevent_default();
+                }
+                Key::ArrowDown => {
+                    editorx.move_cursor_down();
+                    e.prevent_default();
+                }
+                Key::Enter => {
+                    editorx.move_cursor_enter();
+                    e.prevent_default();
+                }
+                Key::Backspace => {
+                    editorx.move_cursor_backspace(1);
+                    e.prevent_default();
+                }
+                Key::Delete => {
+                    editorx.move_cursor_delete(1);
+                    e.prevent_default();
+                }
+                Key::Tab => editorx.move_cursor_tab(),
+                _ => {}
             });
             is_handled_by_keydown.set(true);
+            if let Some(evt) = textarea_focus() {
+                evt.set_focus(true);
+            }
         }
     };
 
@@ -287,17 +341,18 @@ pub fn EditorArea(props: EditorAreaProps) -> Element {
         div {
             style: "flex: 1 1 auto; overflow: hidden; font-family: monospace; font-size: 16px;",
             onclick: on_click.clone(),
-            onkeydown: on_keydown.clone(), 
             Textarea {
+                on_keydown: on_keydown.clone(),
                 on_input: on_input.clone(),
                 editor: editor.clone(),
+                textarea_focus: textarea_focus.clone(),
             }
             for line_index in 0..syntax_blocks.len() {
                 div {
                     style: "white-space: pre; font-family: monospace; font-size: 16px; padding: 4px;",
                     if editor.with(|e| e.is_cursor_at(line_index, 0)) {
                         span {
-                            style: format!("width: {}px; display: inline-block; border-right: 2px solid black;", CHAR_WIDTH),
+                            style: format!("width: {}px; ma; position: relative; margin-left: -1px; display: inline-block; border-right: 2px solid black;", CHAR_WIDTH),
                             " "
                         }
                     } else {
@@ -312,10 +367,10 @@ pub fn EditorArea(props: EditorAreaProps) -> Element {
                                 let rope = editor.with(|e| e.text.lock().unwrap().clone());
                                 let text = rope.slice(range.clone()).to_string();
                                 let mut rendered_text = String::new();
-                                let char_count = syntax_blocks.char_count_up_to(line_index, col_index); 
+                                let char_count = syntax_blocks.char_count_up_to(line_index, col_index);
                                 for (i, ch) in text.chars().enumerate() {
                                     if editor.with(|e| e.is_cursor_at(line_index, char_count + i + 1)) {
-                                        rendered_text.push_str(&format!("<span style=\"border-right: 2px solid black;\">{}</span>", ch));
+                                        rendered_text.push_str(&format!("<span style=\"position: relative; margin-left:-1px; border-right: 2px solid black;\">{}</span>", ch));
                                     } else {
                                         rendered_text.push(ch);
                                     }
@@ -333,7 +388,7 @@ pub fn EditorArea(props: EditorAreaProps) -> Element {
                                 let mut rendered_text = String::new();
                                 for (i, ch) in text.chars().enumerate() {
                                     if editor.with(|e| e.is_cursor_at(line_index, char_count + i + 1)) {
-                                        rendered_text.push_str(&format!("<span style=\"border-right: 2px solid black;\">{}</span>", ch));
+                                        rendered_text.push_str(&format!("<span style=\"position: relative; margin-left:-1px; border-right: 2px solid black;\">{}</span>", ch));
                                     } else {
                                         rendered_text.push(ch);
                                     }

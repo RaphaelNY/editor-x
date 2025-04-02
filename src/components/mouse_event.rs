@@ -29,7 +29,11 @@ pub fn handle_mouse_click(
         let line_text = rope.line(line);
         let max_cols = line_text.len_chars();
         for (i, ch) in line_text.chars().enumerate() {
-            width += if ch.is_ascii() { char_width } else { char_width * 2 };
+            width += if ch.is_ascii() {
+                char_width
+            } else {
+                char_width * 2
+            };
             if width > mouse_x - 8 {
                 col = i;
                 break;

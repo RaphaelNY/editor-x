@@ -80,7 +80,7 @@ impl SyntaxBlocks {
     pub fn clear(&mut self) {
         self.blocks.clear();
     }
-    
+
     /// 统计前 col_index 个节点的字符总长度
     pub fn char_count_up_to(&self, line: usize, col_index: usize) -> usize {
         let mut char_count = 0;
